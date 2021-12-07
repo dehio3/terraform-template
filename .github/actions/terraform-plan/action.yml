@@ -1,0 +1,161 @@
+name: "Terraform Plan"
+description: "Terraform Plan"
+
+inputs:
+  terraform-version:
+    description: "Terraform version"
+    required: true
+  working-directory:
+    description: "working directory"
+    required: true
+  aws-assume-role-arn:
+    description: "aws assume role arn"
+    required: true
+  aws-region:
+    description: "AWS Region"
+    required: true
+    default: ap-northeast-1
+  github-token:
+    description: "GitHub Access Token"
+    required: true
+
+outputs:
+  plan-stdout:
+    description: "Terraform Plan stdout"
+    value: ${{ steps.plan.outputs.stdout }}
+  plan-stderr:
+    description: "Terraform Plan stderror"
+    value: ${{ steps.plan.outputs.stderr }}
+  plan-exitcode:
+    description: "Terraform Plan exitcode"
+    value: ${{ steps.plan.outputs.exitcode }}
+
+runs:
+  using: "composite"
+
+  steps:
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-region: ${{ inputs.aws-region }}
+        role-to-assume: ${{ inputs.aws-assume-role-arn }}
+        role-session-name: terraform
+
+    - name: "Terraform Setup"
+      uses: hashicorp/setup-terraform@v1
+      with:
+        terraform_version: ${{ inputs.terraform-version }}
+
+    - name: "Terraform format"
+      id: fmt
+      working-directory: ${{ inputs.working-directory }}
+      shell: bash
+      run: terraform fmt -check -recursive
+
+    - name: Post fmt
+      uses: actions/github-script@v5
+      if: always() && steps.fmt.outputs.exitcode != '0' && github.event_name == 'pull_request'
+      env:
+        STDOUT: "${{ steps.fmt.outputs.stdout }}"
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const output = `## \`${{ inputs.working-directory }} / format error\`
+
+          \`\`\`${process.env.STDOUT}\`\`\`
+
+          *Action: \`${{ github.event_name }}\`, Workflow: \`${{ github.workflow }}\`*`;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: output
+          })
+
+    - name: "Terraform init"
+      id: init
+      working-directory: ${{ inputs.working-directory }}
+      shell: bash
+      run: terraform init -no-color
+
+    - name: Post init
+      uses: actions/github-script@v5
+      if: always() && steps.init.outputs.exitcode != '0' && github.event_name == 'pull_request'
+      env:
+        STDOUT: "${{ steps.init.outputs.stderr }}"
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const output = `## \`${{ inputs.working-directory }} / init error\`
+
+          \`\`\`${process.env.STDOUT}\`\`\`
+
+          *Action: \`${{ github.event_name }}\`, Workflow: \`${{ github.workflow }}\`*`;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: output
+          })
+
+    - name: "Terraform validate"
+      id: validate
+      working-directory: ${{ inputs.working-directory }}
+      shell: bash
+      run: terraform validate -no-color
+
+    - name: Post validate
+      uses: actions/github-script@v5
+      if: always() && steps.validate.outputs.exitcode != '0' && github.event_name == 'pull_request'
+      env:
+        STDOUT: "${{ steps.validate.outputs.stderr }}"
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const output = `## \`${{ inputs.working-directory }} / validate error\`
+
+          \`\`\`${process.env.STDOUT}\`\`\`
+
+          *Action: \`${{ github.event_name }}\`, Workflow: \`${{ github.workflow }}\`*`;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: output
+          })
+
+    - name: "Terraform plan"
+      id: plan
+      working-directory: ${{ inputs.working-directory }}
+      shell: bash
+      run: terraform plan -no-color
+      env:
+        TF_RECREATE_MISSING_LAMBDA_PACKAGE: "false"
+
+    - name: Post Plan
+      uses: actions/github-script@v5
+      if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+      env:
+        STDOUT: "${{ steps.plan.outputs.stdout }}"
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const output = `## \`${{ inputs.working-directory }} / plan\`
+
+          <details><summary>Show Plan</summary>
+
+          \`\`\`${process.env.STDOUT}\`\`\`
+
+          </details>
+
+          *Action: \`${{ github.event_name }}\`, Workflow: \`${{ github.workflow }}\`*`;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: output
+          })

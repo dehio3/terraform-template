@@ -1,0 +1,4 @@
+---
+exclude:
+  - aws-s3-enable-bucket-logging
+  - aws-s3-enable-versioning

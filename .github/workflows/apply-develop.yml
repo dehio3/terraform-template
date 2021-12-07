@@ -1,0 +1,40 @@
+name: "Terraform Apply Develop"
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "develop/**"
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  terraform-version: 1.0.8
+  working-directory: develop
+  aws-region: ap-northeast-1
+
+jobs:
+  apply:
+    name: "Terraform Apply"
+    runs-on: ubuntu-latest
+    env:
+      workdir: develop
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v2
+
+      - name: "Terraform Apply"
+        uses: ./.github/actions/terraform-apply
+        id: apply
+        with:
+          terraform-version: ${{ env.terraform-version }}
+          working-directory: ${{ env.working-directory }}
+          aws-assume-role-arn: ${{ secrets.DEV_AWS_ASSUME_ROLE_ARN }}
+          aws-region: ${{ env.aws-region }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}

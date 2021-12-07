@@ -1,0 +1,47 @@
+name: "Terraform Apply"
+description: "Terraform Apply"
+
+inputs:
+  terraform-version:
+    description: "Terraform version"
+    required: true
+  working-directory:
+    description: "working directory"
+    required: true
+  aws-assume-role-arn:
+    description: "aws assume role arn"
+    required: true
+  aws-region:
+    description: "AWS Region"
+    required: true
+    default: ap-northeast-1
+  github-token:
+    description: "GitHub Access Token"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-region: ${{ inputs.aws-region }}
+        role-to-assume: ${{ inputs.aws-assume-role-arn }}
+        role-session-name: terraform
+
+    - name: "Terraform Setup"
+      uses: hashicorp/setup-terraform@v1
+      with:
+        terraform_version: ${{ inputs.terraform-version }}
+
+    - name: "Terraform init"
+      id: init
+      working-directory: ${{ inputs.working-directory }}
+      shell: bash
+      run: terraform init
+
+    - name: "Terraform Apply"
+      id: apply
+      working-directory: ${{ inputs.working-directory }}
+      shell: bash
+      run: terraform apply -auto-approve

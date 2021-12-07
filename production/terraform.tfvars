@@ -1,0 +1,2 @@
+environment = "pro"
+service     = "sample"
