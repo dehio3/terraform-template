@@ -34,6 +34,9 @@ runs:
       with:
         terraform_version: ${{ inputs.terraform-version }}
 
+    - name: "Setup tfcmt"
+      uses: shmokmt/actions-setup-tfcmt@v2
+
     - name: "Terraform init"
       id: init
       working-directory: ${{ inputs.working-directory }}
@@ -44,4 +47,7 @@ runs:
       id: apply
       working-directory: ${{ inputs.working-directory }}
       shell: bash
-      run: terraform apply -auto-approve
+      run: tfcmt -var author:${{ github.actor }} apply -- terraform apply -auto-approve
+      env:
+        TF_RECREATE_MISSING_LAMBDA_PACKAGE: "false"
+        GITHUB_TOKEN: ${{ inputs.github-token }}

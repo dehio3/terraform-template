@@ -1,0 +1,5 @@
+templates:
+  guide_apply_failure: |
+    @{{.Vars.author}} Please check the error.
+  guide_apply_parse_error: |
+    @{{.Vars.author}} Please check the error.

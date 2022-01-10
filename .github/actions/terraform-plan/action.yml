@@ -46,6 +46,9 @@ runs:
       with:
         terraform_version: ${{ inputs.terraform-version }}
 
+    - name: "Setup tfcmt"
+      uses: shmokmt/actions-setup-tfcmt@v2
+
     - name: "Terraform format"
       id: fmt
       working-directory: ${{ inputs.working-directory }}
@@ -131,31 +134,7 @@ runs:
       id: plan
       working-directory: ${{ inputs.working-directory }}
       shell: bash
-      run: terraform plan -no-color
+      run: tfcmt -var target:${{ inputs.working-directory }} plan -- terraform plan
       env:
         TF_RECREATE_MISSING_LAMBDA_PACKAGE: "false"
-
-    - name: Post Plan
-      uses: actions/github-script@v5
-      if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-      env:
-        STDOUT: "${{ steps.plan.outputs.stdout }}"
-      with:
-        github-token: ${{ inputs.github-token }}
-        script: |
-          const output = `## \`${{ inputs.working-directory }} / plan\`
-
-          <details><summary>Show Plan</summary>
-
-          \`\`\`${process.env.STDOUT}\`\`\`
-
-          </details>
-
-          *Action: \`${{ github.event_name }}\`, Workflow: \`${{ github.workflow }}\`*`;
-
-          github.rest.issues.createComment({
-            issue_number: context.issue.number,
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            body: output
-          })
+        GITHUB_TOKEN: ${{ inputs.github-token }}
